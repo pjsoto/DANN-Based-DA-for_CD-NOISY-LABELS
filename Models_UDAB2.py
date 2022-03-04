@@ -477,6 +477,13 @@ class Models():
                     y_train_predict_batch = np.argmax(batch_probs, axis = 1)
                     y_train_batch = np.argmax(y_train_c_hot_batch, axis = 1)
                     batch_counter_cl += 1
+
+                    accuracy, f1score, recall, precission, conf_mat = compute_metrics(y_train_batch.astype(int), y_train_predict_batch.astype(int))
+
+                    accuracy_tr += accuracy
+                    f1_score_tr += f1score
+                    recall_tr += recall
+                    precission_tr += precission
                 if self.args.training_type == 'domain_adaptation':
                     if np.sum(domain_index_batch) < self.args.batch_size:
                         _, batch_loss, batch_probs, batch_loss_d = self.sess.run([self.training_optimizer, self.classifier_loss, self.prediction_c, self.domainregressor_loss],
@@ -496,12 +503,12 @@ class Models():
                         y_train_batch = np.argmax(y_train_hot_labeled, axis = 1)
                         batch_counter_cl += 1
 
-                accuracy, f1score, recall, precission, conf_mat = compute_metrics(y_train_batch.astype(int), y_train_predict_batch.astype(int))
+                        accuracy, f1score, recall, precission, conf_mat = compute_metrics(y_train_batch.astype(int), y_train_predict_batch.astype(int))
 
-                accuracy_tr += accuracy
-                f1_score_tr += f1score
-                recall_tr += recall
-                precission_tr += precission
+                        accuracy_tr += accuracy
+                        f1_score_tr += f1score
+                        recall_tr += recall
+                        precission_tr += precission
 
 
 
@@ -553,7 +560,12 @@ class Models():
                     loss_cl_vl[0 , 0] += batch_loss
                     y_valid_batch = np.argmax(y_valid_c_hot_batch, axis = 1)
                     y_valid_predict_batch = np.argmax(batch_probs, axis = 1)
-                    batch_counter_cl
+                    accuracy, f1score, recall, precission, conf_mat = compute_metrics(y_valid_batch.astype(int), y_valid_predict_batch.astype(int))
+                    accuracy_vl += accuracy
+                    f1_score_vl += f1score
+                    recall_vl += recall
+                    precission_vl += precission
+                    batch_counter_cl += 1
 
                 if self.args.training_type == 'domain_adaptation':
                     if np.sum(domain_index_batch) < self.args.batch_size:
@@ -570,15 +582,15 @@ class Models():
 
                         y_valid_batch = np.argmax(y_valid_hot_labeled, axis = 1)
                         y_valid_predict_batch = np.argmax(p_valid_labeled_data, axis=1)
-                        batch_counter_cl
+                        batch_counter_cl += 1
 
-                accuracy, f1score, recall, precission, conf_mat = compute_metrics(y_valid_batch.astype(int), y_valid_predict_batch.astype(int))
+                        accuracy, f1score, recall, precission, conf_mat = compute_metrics(y_valid_batch.astype(int), y_valid_predict_batch.astype(int))
 
-                accuracy_vl += accuracy
-                f1_score_vl += f1score
-                recall_vl += recall
-                precission_vl += precission
-                
+                        accuracy_vl += accuracy
+                        f1_score_vl += f1score
+                        recall_vl += recall
+                        precission_vl += precission
+
 
             loss_cl_vl = loss_cl_vl/(batch_counter_cl)
             accuracy_vl = accuracy_vl/(batch_counter_cl)
