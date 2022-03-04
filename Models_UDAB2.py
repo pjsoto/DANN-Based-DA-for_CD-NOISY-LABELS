@@ -345,7 +345,7 @@ class Models():
                 y_valid_n = y_valid_n[:int(size_t/2),:]
                 central_pixels_coor_vl = np.concatenate((central_pixels_coor_vl_p, central_pixels_coor_vl_n), axis=0)
                 y_valid = np.concatenate((y_valid_p, y_valid_n), axis=0)
-                central_pixels_coor_vl_s, y_train_s = shuffle(central_pixels_coor_vl, y_valid,random_state=0)
+                central_pixels_coor_vl_s, y_valid_s = shuffle(central_pixels_coor_vl, y_valid,random_state=0)
 
             print("Source and Target dimensions")
             print(np.shape(central_pixels_coor_tr_s))
