@@ -398,6 +398,8 @@ class Models():
         while (e < self.args.epochs):
 
             #Shuffling the data and the labels
+            print(central_pixels_coor_tr.shape[0])
+            print(y_train_c_hot.shape[0])
             num_samples = central_pixels_coor_tr.shape[0]
             index = np.arange(num_samples)
             np.random.shuffle(index)
