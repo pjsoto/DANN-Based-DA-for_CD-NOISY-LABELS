@@ -531,13 +531,13 @@ class Models():
                     data_batch = Data_Augmentation_Execution(data_batch, transformation_indexs_batch)
 
                 if self.args.training_type == 'classification':
-                    _, batch_loss, batch_probs = self.sess.run([self.training_optimizer, self.classifier_loss, self.prediction_c],
-                                                                    feed_dict={self.data: data_batch, self.label: y_train_c_hot_batch,
+                    batch_loss, batch_probs = self.sess.run([self.classifier_loss, self.prediction_c],
+                                                                    feed_dict={self.data: data_batch, self.label: y_valid_c_hot_batch,
                                                                     self.mask_c: classification_mask_batch[:,0], self.learning_rate: self.lr})
 
                 if self.args.training_type == 'domain_adaptation':
-                    _, batch_loss, batch_probs, batch_loss_d = self.sess.run([self.training_optimizer, self.classifier_loss, self.prediction_c, self.domainregressor_loss],
-                                                                                    feed_dict = {self.data: data_batch, self.label: y_train_c_hot_batch, self.label_d: y_train_d_hot_batch,
+                    batch_loss, batch_probs, batch_loss_d = self.sess.run([self.classifier_loss, self.prediction_c, self.domainregressor_loss],
+                                                                                    feed_dict = {self.data: data_batch, self.label: y_valid_c_hot_batch, self.label_d: y_valid_d_hot_batch,
                                                                                                  self.mask_c: classification_mask_batch[:,0], self.L: self.l, self.learning_rate: self.lr})
                     loss_dr_vl[0 , 0] += batch_loss_d
 
