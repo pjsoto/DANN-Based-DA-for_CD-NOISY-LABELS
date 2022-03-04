@@ -51,6 +51,7 @@ parser.add_argument('--num_classes', dest='num_classes', type=int, default=2, he
 # Phase
 parser.add_argument('--phase', dest='phase', default='train', help='train|test|compute_metrics')
 parser.add_argument('--training_type', dest='training_type', type=str, default='domain_adaptation', help='classification|domain_adaptation')
+parser.add_argument('--da_type', dest='da_type', type=str, default='CL', help='CL|DR|CL_DR')
 parser.add_argument('--runs', dest='runs', type=int, default=1, help='number of executions of the algorithm')
 # Early stop parameter
 parser.add_argument('--patience', dest='patience', type=int, default=10, help='number of epochs without improvement to apply early stop')
@@ -135,7 +136,6 @@ def main():
         args.reference_t1_name = args.target_reference_t1_name
         args.reference_t2_name = args.target_reference_t2_name
         dataset_t = AMAZON_RO(args)
-
 
     if args.target_dataset == 'Amazon_PA':
         args.dataset = 'Amazonia_Legal/'

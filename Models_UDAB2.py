@@ -16,7 +16,7 @@ from contextlib import redirect_stdout
 
 from Tools import *
 from Networks import *
-
+from flip_gradient import flip_gradient
 class Models():
     def __init__(self, args, dataset, run):
         self.args = args
@@ -32,21 +32,30 @@ class Models():
             self.data = tf.placeholder(tf.float32, [None, self.args.patches_dimension, self.args.patches_dimension, 2 * self.args.image_channels], name = "data")
 
         self.label = tf.placeholder(tf.float32, [None, self.args.num_classes], name = "label")
+        self.label_d = tf.placeholder(tf.float32, [None, 2], name = "label_d")
+        self.mask_c = tf.placeholder(tf.float32, [None,], name="labeled_samples")
         self.L = tf.placeholder(tf.float32, [], name="L" )
 
         # Initializing the network class
-        self.networks = Networks(self.args)
+        self.classifier = EF_CNN(self.args)
         # Initializing the models individually
         if self.args.FE_Architecture == 'Mabel_Arch':
-            Encoder_Outputs = self.networks.build_Mabel_Arch(self.data, reuse = False, name = "FE")
+            Encoder_Outputs = self.classifier.build_Mabel_Arch(self.data, reuse = False, name = "FE")
         elif self.args.FE_Architecture == 'Ganin_Arch':
-            Encoder_Outputs = self.networks.build_Ganin_Arch(self.data, reuse = False, name = "FE")
-
+            Encoder_Outputs = self.classifier.build_Ganin_Arch(self.data, reuse = False, name = "FE")
         #Defining the classifier
-        Classifier_Outputs = self.networks.build_MLP_1hidden_cl(Encoder_Outputs[-1], reuse = False, name = "MLP_Cl")
+        Classifier_Outputs = self.classifier.build_MLP_1hidden_cl(Encoder_Outputs[-1], reuse = False, name = "MLP_Cl")
 
         self.logits_c = Classifier_Outputs[-2]
         self.prediction_c = Classifier_Outputs[-1]
+        self.features_c = Encoder_Outputs[-1]
+
+        if self.args.training_type == 'domain_adaptation':
+            if 'DR' in self.args.da_type:
+                flip_feature = flip_gradient(self.features_c, self.L)
+                self.DR = Domain_Regressors(self.args)
+                DR_Ouputs = self.DR.build_Domain_Classifier_Arch(flip_feature, name = 'FC_Domain_Classifier')
+                self.logits_d = DR_Ouputs[-2]
 
         if self.args.phase == 'train':
             self.summary(Encoder_Outputs, 'Encoder:')
@@ -55,14 +64,22 @@ class Models():
             self.dataset_s = dataset[0]
             self.dataset_t = dataset[1]
             #Defining losses
-            self.total_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = self.logits_c, labels = self.label))
-
+            temp = tf.nn.softmax_cross_entropy_with_logits(logits = self.logits_c, labels = self.label)
+            self.classifier_loss =  tf.reduce_sum(self.mask_c * temp) / tf.reduce_sum(self.mask_c)
+            if self.args.training_type == 'classification':
+                self.total_loss = self.classifier_loss
+            else:
+                if 'DR' in self.args.da_type:
+                    self.summary(DR_Ouputs, "Domain_Regressor: ")
+                    self.domainregressor_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits = self.logits_d, labels = self.label_d))
+                    self.total_loss = self.classifier_loss + self.domainregressor_loss
+                else:
+                    self.total_loss = self.classifier_loss
             #Defining the Optimizers
             self.training_optimizer = tf.train.MomentumOptimizer(self.learning_rate, self.args.beta1).minimize(self.total_loss)
             self.saver = tf.train.Saver(max_to_keep=5)
             self.sess=tf.Session()
             self.sess.run(tf.initialize_all_variables())
-
 
         elif self.args.phase == 'test':
             self.dataset = dataset
@@ -121,8 +138,6 @@ class Models():
             y_train = np.concatenate((positive_y_train, negative_y_train), axis=0)
             # Shuffling again
             central_pixels_coor_tr_s, y_train_s = shuffle(central_pixels_coor_tr, y_train,random_state=0)
-
-
         if self.args.balanced_vl:
             central_pixels_coor_vl = self.dataset_s.central_pixels_coor_vl.copy()
             y_valid = self.dataset_s.y_valid.copy()
@@ -158,7 +173,6 @@ class Models():
         print(np.shape(y_train_s))
         print(np.shape(y_valid_s))
 
-
         if self.args.training_type == 'classification':
             print('Classification training on source domain')
             y_train_s_hot = tf.keras.utils.to_categorical(y_train_s, self.args.num_classes)
@@ -176,6 +190,197 @@ class Models():
             domain_indexs_tr = np.zeros((y_train_c_hot.shape[0], 1))
             domain_indexs_vl = np.zeros((y_valid_c_hot.shape[0], 1))
 
+        if self.args.training_type == 'domain_adaptation':
+            print('Applying Domain Adaptation')
+            # Analysing the target train dataset
+            central_pixels_coor_tr = self.dataset_t.central_pixels_coor_tr.copy()
+            y_train = self.dataset_t.y_train.copy()
+            central_pixels_coor_tr, y_train = shuffle(central_pixels_coor_tr, y_train, random_state=0)
+            positive_coordinates = np.transpose(np.array(np.where(y_train == 1)))
+            negative_coordinates = np.transpose(np.array(np.where(y_train == 0)))
+            positive_coordinates = positive_coordinates[:,0]
+            negative_coordinates = negative_coordinates[:,0]
+            if len(negative_coordinates) != 0:
+                positive_central_pixels_coor_tr = central_pixels_coor_tr[positive_coordinates, :]
+                if self.args.data_augmentation:
+                    positive_central_pixels_coor_tr, _ = Data_Augmentation_Definition(positive_central_pixels_coor_tr, np.ones((len(positive_coordinates),1)))
+
+                #Taking the same amount of negative samples as positive
+                negative_coordinates = negative_coordinates[:positive_central_pixels_coor_tr.shape[0]]
+                if self.args.data_augmentation:
+                    negative_central_pixels_coor_tr = np.concatenate((central_pixels_coor_tr[negative_coordinates, :], np.zeros((len(negative_coordinates),1))),axis=1)
+                else:
+                    negative_central_pixels_coor_tr = central_pixels_coor_tr[negative_coordinates, :]
+
+                positive_y_train = np.ones((positive_central_pixels_coor_tr.shape[0],1))
+                negative_y_train = np.zeros((negative_central_pixels_coor_tr.shape[0],1))
+                central_pixels_coor_tr = np.concatenate((positive_central_pixels_coor_tr, negative_central_pixels_coor_tr), axis=0)
+                y_train = np.concatenate((positive_y_train, negative_y_train), axis=0)
+                # Shuffling again
+                central_pixels_coor_tr_t, y_train_t = shuffle(central_pixels_coor_tr, y_train,random_state=0)
+            else:
+                positive_central_pixels_coor_tr = central_pixels_coor_tr[positive_coordinates, :]
+                if self.args.data_augmentation:
+                    positive_central_pixels_coor_tr, _ = Data_Augmentation_Definition(positive_central_pixels_coor_tr, np.ones((len(positive_coordinates),1)))
+
+                central_pixels_coor_tr_t = positive_central_pixels_coor_tr.copy()
+                y_train_t = np.ones((positive_central_pixels_coor_tr.shape[0],1))
+
+            # Analysing the target valid dataset
+            central_pixels_coor_vl = self.dataset_t.central_pixels_coor_vl.copy()
+            y_valid = self.dataset_t.y_valid.copy()
+            central_pixels_coor_vl, y_valid = shuffle(central_pixels_coor_vl, y_valid, random_state=0)
+            positive_coordinates = np.transpose(np.array(np.where(y_valid == 1)))
+            negative_coordinates = np.transpose(np.array(np.where(y_valid == 0)))
+            positive_coordinates = positive_coordinates[:,0]
+            negative_coordinates = negative_coordinates[:,0]
+            if len(negative_coordinates) != 0:
+                positive_central_pixels_coor_vl = central_pixels_coor_vl[positive_coordinates, :]
+                if self.args.data_augmentation:
+                    positive_central_pixels_coor_vl, _ = Data_Augmentation_Definition(positive_central_pixels_coor_vl, np.ones((len(positive_coordinates),1)))
+
+                #Taking the same amount of negative samples as positive
+                negative_coordinates = negative_coordinates[:positive_central_pixels_coor_vl.shape[0]]
+                if self.args.data_augmentation:
+                    negative_central_pixels_coor_vl = np.concatenate((central_pixels_coor_vl[negative_coordinates, :], np.zeros((len(negative_coordinates),1))),axis=1)
+                else:
+                    negative_central_pixels_coor_vl = central_pixels_coor_vl[negative_coordinates, :]
+
+                positive_y_valid = np.ones((positive_central_pixels_coor_vl.shape[0],1))
+                negative_y_valid = np.zeros((negative_central_pixels_coor_vl.shape[0],1))
+                central_pixels_coor_vl = np.concatenate((positive_central_pixels_coor_vl, negative_central_pixels_coor_vl), axis=0)
+                y_valid = np.concatenate((positive_y_valid, negative_y_valid), axis=0)
+                # Shuffling again
+                central_pixels_coor_vl_t, y_valid_t = shuffle(central_pixels_coor_vl, y_valid,random_state=0)
+            else:
+                positive_central_pixels_coor_vl = central_pixels_coor_vl[positive_coordinates, :]
+                if self.args.data_augmentation:
+                    positive_central_pixels_coor_vl, _ = Data_Augmentation_Definition(positive_central_pixels_coor_vl, np.ones((len(positive_coordinates),1)))
+                y_valid_t = np.ones((positive_central_pixels_coor_vl.shape[0],1))
+            print("Target sets dimensions")
+            print(np.shape(central_pixels_coor_tr_t))
+            print(np.shape(central_pixels_coor_vl_t))
+            print(np.shape(y_train_t))
+            print(np.shape(y_valid_t))
+
+            #Verify the size of each set aiming at balancing both training sets
+            size_s = np.size(y_train_s, 0)
+            size_t = np.size(y_train_t, 0)
+            if size_t > size_s:
+                positive_coordinates = np.transpose(np.array(np.where(y_train_t == 1)))
+                negative_coordinates = np.transpose(np.array(np.where(y_train_t == 0)))
+                positive_coordinates = positive_coordinates[:,0]
+                negative_coordinates = negative_coordinates[:,0]
+                if len(negative_coordinates) != 0:
+                    central_pixels_coor_tr_p = central_pixels_coor_tr_t[positive_coordinates,:]
+                    central_pixels_coor_tr_n = central_pixels_coor_tr_t[negative_coordinates,:]
+                    y_train_p = y_train_t[positive_coordinates,:]
+                    y_train_n = y_train_t[negative_coordinates,:]
+                    central_pixels_coor_tr_p = central_pixels_coor_tr_p[:int(size_s/2),:]
+                    central_pixels_coor_tr_n = central_pixels_coor_tr_n[:int(size_s/2),:]
+                    y_train_p = y_train_p[:int(size_s/2),:]
+                    y_train_n = y_train_n[:int(size_s/2),:]
+                    central_pixels_coor_tr = np.concatenate((central_pixels_coor_tr_p, central_pixels_coor_tr_n), axis=0)
+                    y_train = np.concatenate((y_train_p, y_train_n), axis=0)
+                    central_pixels_coor_tr_t, y_train_t = shuffle(central_pixels_coor_tr, y_train,random_state=0)
+                else:
+                    central_pixels_coor_tr_t = central_pixels_coor_tr_t[:size_s, :]
+                    y_train_t = y_train_t[:size_s, :]
+            elif size_s > size_t:
+                positive_coordinates = np.transpose(np.array(np.where(y_train_s == 1)))
+                negative_coordinates = np.transpose(np.array(np.where(y_train_s == 0)))
+                positive_coordinates = positive_coordinates[:,0]
+                negative_coordinates = negative_coordinates[:,0]
+
+                central_pixels_coor_tr_p = central_pixels_coor_tr_s[positive_coordinates,:]
+                central_pixels_coor_tr_n = central_pixels_coor_tr_s[negative_coordinates,:]
+                y_train_p = y_train_t[positive_coordinates,:]
+                y_train_n = y_train_t[negative_coordinates,:]
+                central_pixels_coor_tr_p = central_pixels_coor_tr_p[:int(size_t/2),:]
+                central_pixels_coor_tr_n = central_pixels_coor_tr_n[:int(size_t/2),:]
+                y_train_p = y_train_p[:int(size_t/2),:]
+                y_train_n = y_train_n[:int(size_t/2),:]
+                central_pixels_coor_tr = np.concatenate((central_pixels_coor_tr_p, central_pixels_coor_tr_n), axis=0)
+                y_train = np.concatenate((y_train_p, y_train_n), axis=0)
+                central_pixels_coor_tr_s, y_train_s = shuffle(central_pixels_coor_tr, y_train,random_state=0)
+
+            #Verify the size of each set aiming at balancing both validation sets
+            size_s = np.size(y_valid_s, 0)
+            size_t = np.size(y_valid_t, 0)
+            if size_t > size_s:
+                positive_coordinates = np.transpose(np.array(np.where(y_valid_t == 1)))
+                negative_coordinates = np.transpose(np.array(np.where(y_valid_t == 0)))
+                positive_coordinates = positive_coordinates[:,0]
+                negative_coordinates = negative_coordinates[:,0]
+                if len(negative_coordinates) != 0:
+                    central_pixels_coor_vl_p = central_pixels_coor_vl_t[positive_coordinates,:]
+                    central_pixels_coor_vl_n = central_pixels_coor_vl_t[negative_coordinates,:]
+                    y_valid_p = y_valid_t[positive_coordinates,:]
+                    y_valid_n = y_valid_t[negative_coordinates,:]
+                    central_pixels_coor_vl_p = central_pixels_coor_vl_p[:int(size_s/2),:]
+                    central_pixels_coor_vl_n = central_pixels_coor_vl_n[:int(size_s/2),:]
+                    y_valid_p = y_valid_p[:int(size_s/2),:]
+                    y_valid_n = y_valid_n[:int(size_s/2),:]
+                    central_pixels_coor_vl = np.concatenate((central_pixels_coor_vl_p, central_pixels_coor_vl_n), axis=0)
+                    y_valid = np.concatenate((y_valid_p, y_valid_n), axis=0)
+                    central_pixels_coor_vl_t, y_valid_t = shuffle(central_pixels_coor_vl, y_valid, random_state=0)
+                else:
+                    central_pixels_coor_vl_t = central_pixels_coor_vl_t[:size_s, :]
+                    y_valid_t = y_valid_t[:size_s, :]
+
+            elif size_s > size_t:
+                positive_coordinates = np.transpose(np.array(np.where(y_valid_s == 1)))
+                negative_coordinates = np.transpose(np.array(np.where(y_valid_s == 0)))
+                positive_coordinates = positive_coordinates[:,0]
+                negative_coordinates = negative_coordinates[:,0]
+
+                central_pixels_coor_vl_p = central_pixels_coor_vl_s[positive_coordinates,:]
+                central_pixels_coor_vl_n = central_pixels_coor_vl_s[negative_coordinates,:]
+                y_valid_p = y_valid_t[positive_coordinates,:]
+                y_valid_n = y_valid_t[negative_coordinates,:]
+                central_pixels_coor_vl_p = central_pixels_coor_vl_p[:int(size_t/2),:]
+                central_pixels_coor_vl_n = central_pixels_coor_vl_n[:int(size_t/2),:]
+                y_valid_p = y_valid_p[:int(size_t/2),:]
+                y_valid_n = y_valid_n[:int(size_t/2),:]
+                central_pixels_coor_vl = np.concatenate((central_pixels_coor_vl_p, central_pixels_coor_vl_n), axis=0)
+                y_valid = np.concatenate((y_valid_p, y_valid_n), axis=0)
+                central_pixels_coor_vl_s, y_train_s = shuffle(central_pixels_coor_vl, y_valid,random_state=0)
+
+            print("Source and Target dimensions")
+            print(np.shape(central_pixels_coor_tr_s))
+            print(np.shape(central_pixels_coor_tr_t))
+            print(np.shape(central_pixels_coor_vl_s))
+            print(np.shape(central_pixels_coor_vl_t))
+
+            #Preparing the sets for the training
+            y_train_ds = np.zeros((y_train_s.shape[0], 1))
+            y_valid_ds = np.zeros((y_train_s.shape[0], 1))
+            y_train_dt = np.ones((y_train_t.shape[0], 1))
+            y_valid_dt = np.ones((y_train_t.shape[0], 1))
+
+            y_train_s_hot = tf.keras.utils.to_categorical(y_train_s, self.args.num_classes)
+            y_valid_s_hot = tf.keras.utils.to_categorical(y_valid_s, self.args.num_classes)
+            y_train_t_hot = tf.keras.utils.to_categorical(y_train_t, self.args.num_classes)
+            y_valid_t_hot = tf.keras.utils.to_categorical(y_valid_t, self.args.num_classes)
+            y_train_ds_hot = tf.keras.utils.to_categorical(y_train_ds, self.args.num_classes)
+            y_valid_ds_hot = tf.keras.utils.to_categorical(y_valid_ds, self.args.num_classes)
+            y_train_dt_hot = tf.keras.utils.to_categorical(y_train_dt, self.args.num_classes)
+            y_valid_dt_hot = tf.keras.utils.to_categorical(y_valid_dt, self.args.num_classes)
+
+            central_pixels_coor_tr = np.concatenate((central_pixels_coor_tr_s, central_pixels_coor_tr_t), axis = 0)
+            central_pixels_coor_vl = np.concatenate((central_pixels_coor_vl_s, central_pixels_coor_vl_t), axis = 0)
+            y_train_c_hot = np.concatenate((y_train_s_hot, y_train_t_hot), axis = 0)
+            y_valid_c_hot = np.concatenate((y_valid_s_hot, y_valid_t_hot), axis = 0)
+            y_train_d_hot = np.concatenate((y_train_ds_hot, y_train_dt_hot), axis = 0)
+            y_valid_d_hot = np.concatenate((y_valid_ds_hot, y_valid_dt_hot), axis = 0)
+            domain_indexs_tr = np.concatenate((y_train_ds, y_train_dt), axis = 0)
+            domain_indexs_vl = np.concatenate((y_valid_ds, y_valid_dt), axis = 0)
+
+            classification_mask_tr = np.concatenate((np.ones((y_train_ds.shape[0] , 1)), np.zeros((y_train_dt.shape[0] , 1))),axis = 0)
+            classification_mask_vl = np.concatenate((np.ones((y_valid_ds.shape[0] , 1)), np.zeros((y_valid_dt.shape[0] , 1))),axis = 0)
+            if 'CL' in self.args.da_type:
+                classification_mask_tr = np.ones((domain_indexs_tr.shape[0] , 1))
+                classification_mask_vl = np.ones((domain_indexs_vl.shape[0] , 1))
 
         data = []
         x_train_s = np.concatenate((self.dataset_s.images_norm[0], self.dataset_s.images_norm[1]), axis = 2)
@@ -201,6 +406,16 @@ class Models():
             classification_mask_tr = classification_mask_tr[index, :]
 
             domain_indexs_tr = domain_indexs_tr[index, :]
+
+            num_samples = central_pixels_coor_vl.shape[0]
+            index = np.arange(num_samples)
+            np.random.shuffle(index)
+            central_pixels_coor_vl = central_pixels_coor_vl[index, :]
+            y_valid_c_hot = y_valid_c_hot[index, :]
+            y_valid_d_hot = y_valid_d_hot[index, :]
+            classification_mask_vl = classification_mask_vl[index, :]
+
+            domain_indexs_vl = domain_indexs_vl[index, :]
 
             # Open a file in order to save the training history
             f = open(self.args.save_checkpoint_path + "Log.txt","a")
@@ -234,19 +449,30 @@ class Models():
             for b in batchs:
                 central_pixels_coor_tr_batch = central_pixels_coor_tr[b * self.args.batch_size : (b + 1) * self.args.batch_size , :]
                 domain_index_batch = domain_indexs_tr[b * self.args.batch_size : (b + 1) * self.args.batch_size, :]
+                classification_mask_batch = classification_mask_tr[b * self.args.batch_size : (b + 1) * self.args.batch_size, :]
 
                 if self.args.data_augmentation:
                     transformation_indexs_batch = central_pixels_coor_tr[b * self.args.batch_size : (b + 1) * self.args.batch_size , 2]
 
                 y_train_c_hot_batch = y_train_c_hot[b * self.args.batch_size : (b + 1) * self.args.batch_size , :]
+                y_train_d_hot_batch = y_train_d_hot[b * self.args.batch_size : (b + 1) * self.args.batch_size , :]
                 #Extracting the data patches from it's coordinates
                 data_batch = Patch_Extraction(data, central_pixels_coor_tr_batch, domain_index_batch, self.args.patches_dimension, True, 'reflect')
                 # Perform data augmentation?
                 if self.args.data_augmentation:
                     data_batch = Data_Augmentation_Execution(data_batch, transformation_indexs_batch)
 
-                _, batch_loss, batch_probs = self.sess.run([self.training_optimizer, self.total_loss, self.prediction_c],
-                                                                feed_dict={self.data: data_batch, self.label: y_train_c_hot_batch, self.learning_rate: self.lr})
+                if self.args.training_type == 'classification':
+                    _, batch_loss, batch_probs = self.sess.run([self.training_optimizer, self.classifier_loss, self.prediction_c],
+                                                                    feed_dict={self.data: data_batch, self.label: y_train_c_hot_batch,
+                                                                    self.mask_c: classification_mask_batch[:,0], self.learning_rate: self.lr})
+
+                if self.args.training_type == 'domain_adaptation':
+                    _, batch_loss, batch_probs, batch_loss_d = self.sess.run([self.training_optimizer, self.classifier_loss, self.prediction_c, self.domainregressor_loss],
+                                                                                    feed_dict = {self.data: data_batch, self.label: y_train_c_hot_batch, self.label_d: y_train_d_hot_batch,
+                                                                                                 self.mask_c: classification_mask_batch[:,0], self.L: self.l, self.learning_rate: self.lr})
+                    loss_dr_tr[0 , 0] += batch_loss_d
+
 
                 loss_cl_tr[0 , 0] += batch_loss
                 y_train_predict_batch = np.argmax(batch_probs, axis = 1)
@@ -268,7 +494,7 @@ class Models():
             recall_tr = recall_tr/batch_counter_cl
             precission_tr = precission_tr/batch_counter_cl
             print(batch_counter_cl)
-            if self.args.training_type == 'domain_adaptation' and 'DANN' in self.args.da_type:
+            if self.args.training_type == 'domain_adaptation' and 'DR' in self.args.da_type:
                 loss_dr_tr = loss_dr_tr/batch_counter_cl
                 self.run["train/cl_loss"].log(loss_cl_tr[0 , 0])
                 self.run["train/dr_loss"].log(loss_dr_tr[0 , 0])
@@ -291,19 +517,28 @@ class Models():
             for b in batchs:
                 central_pixels_coor_vl_batch = central_pixels_coor_vl[b * self.args.batch_size : (b + 1) * self.args.batch_size , :]
                 domain_index_batch = domain_indexs_vl[b * self.args.batch_size : (b + 1) * self.args.batch_size, :]
-
+                classification_mask_batch = classification_mask_vl[b * self.args.batch_size : (b + 1) * self.args.batch_size, :]
                 if self.args.data_augmentation:
                     transformation_indexs_batch = central_pixels_coor_vl[b * self.args.batch_size : (b + 1) * self.args.batch_size , 2]
 
                 y_valid_c_hot_batch = y_valid_c_hot[b * self.args.batch_size : (b + 1) * self.args.batch_size , :]
+                y_valid_d_hot_batch = y_valid_d_hot[b * self.args.batch_size : (b + 1) * self.args.batch_size , :]
                 #Extracting the data patches from it's coordinates
                 data_batch = Patch_Extraction(data, central_pixels_coor_vl_batch, domain_index_batch, self.args.patches_dimension, True, 'reflect')
 
                 if self.args.data_augmentation:
                     data_batch = Data_Augmentation_Execution(data_batch, transformation_indexs_batch)
 
-                batch_loss, batch_probs = self.sess.run([self.total_loss, self.prediction_c],
-                                                        feed_dict={self.data: data_batch, self.label: y_valid_c_hot_batch})
+                if self.args.training_type == 'classification':
+                    _, batch_loss, batch_probs = self.sess.run([self.training_optimizer, self.classifier_loss, self.prediction_c],
+                                                                    feed_dict={self.data: data_batch, self.label: y_train_c_hot_batch,
+                                                                    self.mask_c: classification_mask_batch[:,0], self.learning_rate: self.lr})
+
+                if self.args.training_type == 'domain_adaptation':
+                    _, batch_loss, batch_probs, batch_loss_d = self.sess.run([self.training_optimizer, self.classifier_loss, self.prediction_c, self.domainregressor_loss],
+                                                                                    feed_dict = {self.data: data_batch, self.label: y_train_c_hot_batch, self.label_d: y_train_d_hot_batch,
+                                                                                                 self.mask_c: classification_mask_batch[:,0], self.L: self.l, self.learning_rate: self.lr})
+                    loss_dr_vl[0 , 0] += batch_loss_d
 
                 loss_cl_vl[0 , 0] += batch_loss
                 y_valid_batch = np.argmax(y_valid_c_hot_batch, axis = 1)
@@ -324,7 +559,7 @@ class Models():
             recall_vl = recall_vl/(batch_counter_cl)
             precission_vl = precission_vl/(batch_counter_cl)
 
-            if self.args.training_type == 'domain_adaptation' and 'DANN' in self.args.da_type:
+            if self.args.training_type == 'domain_adaptation' and 'DR' in self.args.da_type:
                 loss_dr_vl = loss_dr_vl/batch_counter_cl
                 self.run["valid/cl_loss"].log(loss_cl_vl[0 , 0])
                 self.run["valid/dr_loss"].log(loss_dr_vl[0 , 0])
