@@ -184,6 +184,7 @@ class Models():
             y_train_c_hot = y_train_s_hot.copy()
             y_valid_c_hot = y_valid_s_hot.copy()
             y_train_d_hot = np.ones((y_train_c_hot.shape[0], 2))
+            y_valid_d_hot = np.ones((y_valid_c_hot.shape[0], 2))
             classification_mask_tr = np.ones((y_train_c_hot.shape[0], 1))
             classification_mask_vl = np.ones((y_valid_c_hot.shape[0], 1))
 
