@@ -352,6 +352,10 @@ class Models():
             print(np.shape(central_pixels_coor_tr_t))
             print(np.shape(central_pixels_coor_vl_s))
             print(np.shape(central_pixels_coor_vl_t))
+            print(np.shape(y_train_s))
+            print(np.shape(y_train_t))
+            print(np.shape(y_valid_s))
+            print(np.shape(y_valid_t))
 
             #Preparing the sets for the training
             y_train_ds = np.zeros((y_train_s.shape[0], 1))
