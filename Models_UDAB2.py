@@ -295,8 +295,8 @@ class Models():
 
                 central_pixels_coor_tr_p = central_pixels_coor_tr_s[positive_coordinates,:]
                 central_pixels_coor_tr_n = central_pixels_coor_tr_s[negative_coordinates,:]
-                y_train_p = y_train_t[positive_coordinates,:]
-                y_train_n = y_train_t[negative_coordinates,:]
+                y_train_p = y_train_s[positive_coordinates,:]
+                y_train_n = y_train_s[negative_coordinates,:]
                 central_pixels_coor_tr_p = central_pixels_coor_tr_p[:int(size_t/2),:]
                 central_pixels_coor_tr_n = central_pixels_coor_tr_n[:int(size_t/2),:]
                 y_train_p = y_train_p[:int(size_t/2),:]
@@ -337,8 +337,8 @@ class Models():
 
                 central_pixels_coor_vl_p = central_pixels_coor_vl_s[positive_coordinates,:]
                 central_pixels_coor_vl_n = central_pixels_coor_vl_s[negative_coordinates,:]
-                y_valid_p = y_valid_t[positive_coordinates,:]
-                y_valid_n = y_valid_t[negative_coordinates,:]
+                y_valid_p = y_valid_s[positive_coordinates,:]
+                y_valid_n = y_valid_s[negative_coordinates,:]
                 central_pixels_coor_vl_p = central_pixels_coor_vl_p[:int(size_t/2),:]
                 central_pixels_coor_vl_n = central_pixels_coor_vl_n[:int(size_t/2),:]
                 y_valid_p = y_valid_p[:int(size_t/2),:]
