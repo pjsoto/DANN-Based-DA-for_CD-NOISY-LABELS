@@ -408,15 +408,15 @@ class Models():
 
             domain_indexs_tr = domain_indexs_tr[index, :]
 
-            num_samples = central_pixels_coor_vl.shape[0]
-            index = np.arange(num_samples)
-            np.random.shuffle(index)
-            central_pixels_coor_vl = central_pixels_coor_vl[index, :]
-            y_valid_c_hot = y_valid_c_hot[index, :]
-            y_valid_d_hot = y_valid_d_hot[index, :]
-            classification_mask_vl = classification_mask_vl[index, :]
+            #num_samples = central_pixels_coor_vl.shape[0]
+            #index = np.arange(num_samples)
+            #np.random.shuffle(index)
+            #central_pixels_coor_vl = central_pixels_coor_vl[index, :]
+            #y_valid_c_hot = y_valid_c_hot[index, :]
+            #y_valid_d_hot = y_valid_d_hot[index, :]
+            #classification_mask_vl = classification_mask_vl[index, :]
 
-            domain_indexs_vl = domain_indexs_vl[index, :]
+            #domain_indexs_vl = domain_indexs_vl[index, :]
 
             # Open a file in order to save the training history
             f = open(self.args.save_checkpoint_path + "Log.txt","a")
