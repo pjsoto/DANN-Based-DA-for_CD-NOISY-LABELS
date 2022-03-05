@@ -359,9 +359,9 @@ class Models():
 
             #Preparing the sets for the training
             y_train_ds = np.zeros((y_train_s.shape[0], 1))
-            y_valid_ds = np.zeros((y_train_s.shape[0], 1))
+            y_valid_ds = np.zeros((y_valid_s.shape[0], 1))
             y_train_dt = np.ones((y_train_t.shape[0], 1))
-            y_valid_dt = np.ones((y_train_t.shape[0], 1))
+            y_valid_dt = np.ones((y_valid_t.shape[0], 1))
 
             y_train_s_hot = tf.keras.utils.to_categorical(y_train_s, self.args.num_classes)
             y_valid_s_hot = tf.keras.utils.to_categorical(y_valid_s, self.args.num_classes)
