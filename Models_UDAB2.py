@@ -257,6 +257,8 @@ class Models():
                 positive_central_pixels_coor_vl = central_pixels_coor_vl[positive_coordinates, :]
                 if self.args.data_augmentation:
                     positive_central_pixels_coor_vl, _ = Data_Augmentation_Definition(positive_central_pixels_coor_vl, np.ones((len(positive_coordinates),1)))
+
+                central_pixels_coor_vl_t = positive_central_pixels_coor_vl.copy()
                 y_valid_t = np.ones((positive_central_pixels_coor_vl.shape[0],1))
             print("Target sets dimensions")
             print(np.shape(central_pixels_coor_tr_t))
