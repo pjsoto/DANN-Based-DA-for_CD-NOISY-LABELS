@@ -67,8 +67,8 @@ def Main():
         args.dataset = 'Cerrado_Biome/'
         dataset = CERRADO_MA(args)
 
-    args.results_dir = args.checkpoint_results_main_path + 'results/' + args.results_dir + '/'
-    args.checkpoint_dir = args.checkpoint_results_main_path + 'checkpoints/' + args.checkpoint_dir + '/'
+    args.results_dir = args.checkpoint_results_main_path + 'RESULTS/' + args.results_dir + '/'
+    args.checkpoint_dir = args.checkpoint_results_main_path + 'CHECKPOINTS/' + args.checkpoint_dir + '/'
     counter = 0
     files = os.listdir(args.results_dir)
     for i in range(0, len(files)):

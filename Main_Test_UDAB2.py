@@ -57,11 +57,11 @@ def main():
 
     if args.phase == 'test':
         print(args)
-        if not os.path.exists(args.checkpoint_results_main_path + 'results/'):
-            os.makedirs(args.checkpoint_results_main_path + 'results/')
+        if not os.path.exists(args.checkpoint_results_main_path + 'RESULTS/'):
+            os.makedirs(args.checkpoint_results_main_path + 'RESULTS/')
 
-        args.results_dir = args.checkpoint_results_main_path + 'results/' + args.results_dir + '/'
-        args.checkpoint_dir = args.checkpoint_results_main_path + 'checkpoints/' + args.checkpoint_dir + '/'
+        args.results_dir = args.checkpoint_results_main_path + 'RESULTS/' + args.results_dir + '/'
+        args.checkpoint_dir = args.checkpoint_results_main_path + 'CHECKPOINTS/' + args.checkpoint_dir + '/'
 
 
         if args.dataset == 'Amazon_RO':
