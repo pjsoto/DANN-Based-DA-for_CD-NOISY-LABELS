@@ -20,7 +20,8 @@ from flip_gradient import flip_gradient
 class Models():
     def __init__(self, args, dataset, run):
         self.args = args
-        self.run = run
+        if self.args.phase == train:
+            self.run = run
         # Initializing the placeholders
         #Changing  the seed  at any run
         tf.set_random_seed(int(time.time()))
