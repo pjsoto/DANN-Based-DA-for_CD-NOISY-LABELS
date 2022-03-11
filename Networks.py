@@ -21,11 +21,11 @@ class EF_CNN():
             Layers.append(self.general_conv2d(Layers[-1], 256,  3, stride = 1, padding = 'SAME', activation_function = 'relu', do_norm = False, name = name + '_conv2d_2'))
             Layers.append(tf.layers.max_pooling2d(Layers[-1], 2, 2, name = name + '_maxpooling_2'))
             Layers.append(self.general_conv2d(Layers[-1], 512,  3, stride = 1, padding = 'SAME', activation_function = 'relu', do_norm = False, name = name + '_conv2d_3'))
-            Layers.append(self.resnet_block(Layers[-1], 512, 3, s = 1, name = name + '_resnet_block_1'))
-            Layers.append(self.resnet_block(Layers[-1], 512, 3, s = 1, name = name + '_resnet_block_2'))
-            Layers.append(self.resnet_block(Layers[-1], 512, 3, s = 1, name = name + '_resnet_block_3'))
+            #Layers.append(self.resnet_block(Layers[-1], 512, 3, s = 1, name = name + '_resnet_block_1'))
+            #Layers.append(self.resnet_block(Layers[-1], 512, 3, s = 1, name = name + '_resnet_block_2'))
+            #Layers.append(self.resnet_block(Layers[-1], 512, 3, s = 1, name = name + '_resnet_block_3'))
 
-            Layers.append(tf.reduce_mean(Layers[-1], axis = [1,2]))
+            #Layers.append(tf.reduce_mean(Layers[-1], axis = [1,2]))
             #Layers.append(tf.layers.flatten(Layers[-1], name = name + '_flatten_1'))
 
             return Layers
