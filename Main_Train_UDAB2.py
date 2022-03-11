@@ -86,10 +86,7 @@ parser.add_argument('--checkpoint_results_main_path', dest='checkpoint_results_m
 args = parser.parse_args()
 
 def main():
-    run = neptune.init(
-    project="pjsotove/Domain-Adaptation-For-Change-Detection",
-    api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJhMjI4NTlkMS0zNzE4LTRjYTEtYWMwMi02MzQzMTY3ZWI5NzUifQ==",
-    )  # your credentials
+
     print(args)
 
     if not os.path.exists(args.checkpoint_results_main_path + 'CHECKPOINTS/'):
@@ -161,6 +158,10 @@ def main():
     print(np.shape(dataset_t.images_norm))
 
     for i in range(args.runs):
+        run = neptune.init(
+        project="pjsotove/Domain-Adaptation-For-Change-Detection",
+        api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJhMjI4NTlkMS0zNzE4LTRjYTEtYWMwMi02MzQzMTY3ZWI5NzUifQ==",
+        )  # your credentials
         dataset = []
         now = datetime.now()
         dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
