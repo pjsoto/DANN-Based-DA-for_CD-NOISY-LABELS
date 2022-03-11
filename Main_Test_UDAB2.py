@@ -55,6 +55,11 @@ args = parser.parse_args()
 
 def main():
 
+    run = neptune.init(
+    project="pjsotove/Domain-Adaptation-For-Change-Detection",
+    api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJhMjI4NTlkMS0zNzE4LTRjYTEtYWMwMi02MzQzMTY3ZWI5NzUifQ==",
+    )
+
     if args.phase == 'test':
         print(args)
         if not os.path.exists(args.checkpoint_results_main_path + 'RESULTS/'):
@@ -93,7 +98,7 @@ def main():
                 os.makedirs(args.save_results_dir)
 
             print('[*]Initializing the model...')
-            model = Models(args, dataset)
+            model = Models(args, dataset, run)
             print('[*]Starting the test...')
             model.Test()
 
