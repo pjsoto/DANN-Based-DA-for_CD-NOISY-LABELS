@@ -26,7 +26,7 @@ class EF_CNN():
             #Layers.append(self.resnet_block(Layers[-1], 512, 3, s = 1, name = name + '_resnet_block_3'))
 
             #Layers.append(tf.reduce_mean(Layers[-1], axis = [1,2]))
-            #Layers.append(tf.layers.flatten(Layers[-1], name = name + '_flatten_1'))
+            Layers.append(tf.layers.flatten(Layers[-1], name = name + '_flatten_1'))
 
             return Layers
 
