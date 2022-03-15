@@ -111,7 +111,8 @@ class Models():
     def Train(self):
 
         pat = 0
-        f1score_val_cl = 0
+        best_val_dr = 0
+        best_val_fs = 0
         if self.args.balanced_tr:
             # Shuffling the data and labels
             central_pixels_coor_tr = self.dataset_s.central_pixels_coor_tr.copy()
@@ -619,16 +620,52 @@ class Models():
 
             f.close()
 
-            if f1score_val_cl < f1_score_vl:
-                f1score_val_cl = f1_score_vl
-                pat = 0
-
-                print('[!]Saving best model ...')
-                self.save(self.args.save_checkpoint_path, e)
+            if self.args.training_type == 'domain_adaptation' and 'DR' in self.args.da_type:
+                if self.l != 0:
+                    FLAG = False
+                    if  best_val_dr < loss_dr_vl[0 , 0] and loss_dr_vl[0 , 0] < 1:
+                        if best_val_fs < f1_score_vl:
+                            best_val_dr = loss_dr_vl[0 , 0]
+                            best_val_fs = f1_score_vl
+                            best_mod_fs = f1_score_vl
+                            best_mod_dr = loss_dr_vl[0 , 0]
+                            best_model_epoch = e
+                            print('[!]Saving best ideal model at epoch: ' + str(e))
+                            f.write("[!]Ideal best ideal model\n")
+                            self.save(self.args.save_checkpoint_path, best_model_epoch)
+                            FLAG = True
+                        elif np.abs(best_val_fs - f1_score_vl) < 3:
+                            best_val_dr = loss_dr_vl[0 , 0]
+                            best_mod_fs = f1_score_vl
+                            best_mod_dr = loss_dr_vl[0 , 0]
+                            best_model_epoch = e
+                            print('[!]Saving best model attending best Dr_loss at epoch: ' + str(e))
+                            f.write("[!]Best model attending best Dr_loss\n")
+                            self.save(self.args.save_checkpoint_path, best_model_epoch)
+                            FLAG = True
+                    elif best_val_fs < f1_score_vl:
+                        if  np.abs(best_val_dr - loss_dr_vl[0 , 0]) < 0.2:
+                            best_val_fs = f1_score_vl
+                            best_mod_fs = f1_score_vl
+                            best_mod_dr = loss_dr_vl[0 , 0]
+                            best_model_epoch = e
+                            print('[!]Saving best model attending best f1-score at epoch: ' + str(e))
+                            f.write("[!]Best model attending best f1-score \n")
+                            self.save(self.args.save_checkpoint_path, best_model_epoch)
+                            FLAG = True
+                else:
+                    print('Warming Up!')
             else:
-                pat += 1
-                if pat > self.args.patience:
-                    break
+                if best_val_fs < f1_score_vl:
+                    best_val_fs = f1_score_vl
+                    pat = 0
+
+                    print('[!]Saving best model ...')
+                    self.save(self.args.save_checkpoint_path, e)
+                else:
+                    pat += 1
+                    if pat > self.args.patience:
+                        break
             e += 1
 
     def Test(self):
