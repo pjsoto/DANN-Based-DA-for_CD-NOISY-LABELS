@@ -618,7 +618,7 @@ class Models():
                 print ("%d [Vl loss: %f, acc.: %.2f%%,  precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%]" % (e, loss_cl_vl[0,0], accuracy_vl, precission_vl, recall_vl, f1_score_vl))
                 f.write("%d [Vl loss: %f, acc.: %.2f%%, precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%]\n" % (e, loss_cl_vl[0,0], accuracy_vl, precission_vl, recall_vl, f1_score_vl))
 
-            f.close()
+
 
             if self.args.training_type == 'domain_adaptation' and 'DR' in self.args.da_type:
                 if self.l != 0:
@@ -653,19 +653,28 @@ class Models():
                             f.write("[!]Best model attending best f1-score \n")
                             self.save(self.args.save_checkpoint_path, best_model_epoch)
                             FLAG = True
+                    if FLAG:
+                        pat = 0
+                        print('[!] Best Model with DrV loss: %.3f and F1-Score: %.2f%%'% (best_mod_dr, best_mod_fs))
+                    else:
+                        print('[!] The Model has not been considered as suitable for saving procedure.')
+                        pat += 1
+                        if pat > self.args.patience:
+                            break
                 else:
                     print('Warming Up!')
             else:
                 if best_val_fs < f1_score_vl:
                     best_val_fs = f1_score_vl
                     pat = 0
-
                     print('[!]Saving best model ...')
+                    f.write('[!]Saving best model...')
                     self.save(self.args.save_checkpoint_path, e)
                 else:
                     pat += 1
                     if pat > self.args.patience:
                         break
+            f.close()
             e += 1
 
     def Test(self):
