@@ -9,8 +9,6 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from skimage.morphology import square, disk
 from sklearn.preprocessing import StandardScaler
-import neptune.new as neptune
-#from tensordash.tensordash import Tensordash, Customdash
 
 from Tools import *
 from Models_UDAB2 import *
@@ -158,10 +156,7 @@ def main():
     print(np.shape(dataset_t.images_norm))
 
     for i in range(args.runs):
-        run = neptune.init(
-        project="pjsotove/Domain-Adaptation-For-Change-Detection",
-        api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJhMjI4NTlkMS0zNzE4LTRjYTEtYWMwMi02MzQzMTY3ZWI5NzUifQ==",
-        )  # your credentials
+
         dataset = []
         now = datetime.now()
         dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
@@ -190,7 +185,7 @@ def main():
         dataset.append(dataset_s)
         dataset.append(dataset_t)
         print('[*]Initializing the model...')
-        model = Models(args, dataset, run)
+        model = Models(args, dataset)
         print('[*]Start the training of the model...')
         model.Train()
 

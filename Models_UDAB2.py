@@ -18,10 +18,9 @@ from Tools import *
 from Networks import *
 from flip_gradient import flip_gradient
 class Models():
-    def __init__(self, args, dataset, run):
+    def __init__(self, args, dataset):
         self.args = args
-        if self.args.phase == 'train':
-            self.run = run
+
         # Initializing the placeholders
         #Changing  the seed  at any run
         tf.set_random_seed(int(time.time()))
@@ -524,16 +523,9 @@ class Models():
             print(batch_counter_cl)
             if self.args.training_type == 'domain_adaptation' and 'DR' in self.args.da_type:
                 loss_dr_tr = loss_dr_tr/batch_counter_cl
-                self.run["train/cl_loss"].log(loss_cl_tr[0 , 0])
-                self.run["train/dr_loss"].log(loss_dr_tr[0 , 0])
-                self.run["train/accuracy"].log(accuracy_tr)
-                self.run["train/F1-Score"].log(f1_score_tr)
                 print ("%d [Tr loss: %f, acc.: %.2f%%,  precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%, Dr loss: %f]" % (e, loss_cl_tr[0 , 0], accuracy_tr, precission_tr, recall_tr, f1_score_tr, loss_dr_tr[0,0]))
                 f.write("%d [Tr loss: %f, acc.: %.2f%%, precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%, Dr loss: %f]\n" % (e, loss_cl_tr[0 , 0], accuracy_tr, precission_tr, recall_tr, f1_score_tr, loss_dr_tr[0,0]))
             else:
-                self.run["train/cl_loss"].log(loss_cl_tr[0 , 0])
-                self.run["train/accuracy"].log(accuracy_tr)
-                self.run["train/F1-Score"].log(f1_score_tr)
                 print ("%d [Tr loss: %f, acc.: %.2f%%, precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%]" % (e, loss_cl_tr[0,0], accuracy_tr, precission_tr, recall_tr, f1_score_tr))
                 f.write("%d [Tr loss: %f, acc.: %.2f%%, precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%]\n" % (e, loss_cl_tr[0,0], accuracy_tr, precission_tr, recall_tr, f1_score_tr))
 
@@ -604,17 +596,10 @@ class Models():
 
             if self.args.training_type == 'domain_adaptation' and 'DR' in self.args.da_type:
                 loss_dr_vl = loss_dr_vl/batch_counter_cl
-                self.run["valid/cl_loss"].log(loss_cl_vl[0 , 0])
-                self.run["valid/dr_loss"].log(loss_dr_vl[0 , 0])
-                self.run["valid/accuracy"].log(accuracy_vl)
-                self.run["valid/F1-Score"].log(f1_score_vl)
                 print ("%d [Vl loss: %f, acc.: %.2f%%,  precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%, DrV loss: %f]" % (e, loss_cl_vl[0,0], accuracy_vl, precission_vl, recall_vl, f1_score_vl, loss_dr_vl[0 , 0]))
                 f.write("%d [Vl loss: %f, acc.: %.2f%%, precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%, DrV loss: %f]\n" % (e, loss_cl_vl[0,0], accuracy_vl, precission_vl, recall_vl, f1_score_vl, loss_dr_vl[0 , 0]))
 
             else:
-                self.run["valid/cl_loss"].log(loss_cl_vl[0 , 0])
-                self.run["valid/accuracy"].log(accuracy_vl)
-                self.run["valid/F1-Score"].log(f1_score_vl)
                 print ("%d [Vl loss: %f, acc.: %.2f%%,  precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%]" % (e, loss_cl_vl[0,0], accuracy_vl, precission_vl, recall_vl, f1_score_vl))
                 f.write("%d [Vl loss: %f, acc.: %.2f%%, precission: %.2f%%, recall: %.2f%%, fscore: %.2f%%]\n" % (e, loss_cl_vl[0,0], accuracy_vl, precission_vl, recall_vl, f1_score_vl))
 
