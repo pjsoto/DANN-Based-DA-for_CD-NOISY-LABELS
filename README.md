@@ -5,6 +5,8 @@ The following figure shows the proposed methodology. The domain adaptation proce
 
 Then, the DANN model is trained with selected samples until convergence, as illustrated in (b). Once the model’s functions have been trained, Gf and Gc are used to classify the samples extracted from the target testing images (c).
 
+![Image](DANN_CD.JPG)
+
 # Prerequisites
 1- Python 3.7.4
 
